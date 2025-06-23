@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 text-center">
+        <div class="card">
+            <div class="card-header">
+                <h2>Scan QR Code for Attendance</h2>
+            </div>
+            <div class="card-body">
+                <div id="qr-reader" style="width:100%;"></div>
+                <div id="qr-reader-results" class="mt-3"></div>
+            </div>
+            <div class="card-footer">
+                Point the camera at an attendee's QR code.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Include the html5-qrcode library -->
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script>
+    function onScanSuccess(decodedText, decodedResult) {
+        // handle the scanned code
+        console.log(`Code matched = ${decodedText}`, decodedResult);
+        
+        // Stop scanning to process the result and prevent multiple scans
+        html5QrcodeScanner.pause();
+        
+        let resultDiv = document.getElementById('qr-reader-results');
+        resultDiv.innerHTML = `<div class="alert alert-info">Verifying...</div>`;
+
+        fetch("{{ url_for('verify_attendance') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ qr_data: decodedText })
+        })
+        .then(response => response.json())
+        .then(data => {
+            let alertClass = data.success ? 'alert-success' : 'alert-danger';
+            let messageHtml = '';
+
+            // Build a detailed message card if attender info is present
+            if (data.attender_info) {
+                messageHtml = `
+                    <div class="alert ${alertClass}" role="alert">
+                        <h4 class="alert-heading">${data.message}</h4>
+                        <hr>
+                        <p class="mb-1"><strong>Attendee:</strong> ${data.attender_info.username}</p>
+                        <p class="mb-1"><strong>Event:</strong> ${data.attender_info.event}</p>
+                        <p class="mb-0"><strong>Seat(s):</strong> ${data.attender_info.seat}</p>
+                    </div>
+                `;
+            } else {
+                // Fallback for simple messages
+                messageHtml = `<div class="alert ${alertClass}" role="alert">${data.message}</div>`;
+            }
+            
+            resultDiv.innerHTML = messageHtml;
+            
+            // Resume scanning after a delay to allow admin to read info
+            setTimeout(() => {
+                resultDiv.innerHTML = '';
+                html5QrcodeScanner.resume();
+            }, 5000); // 5-second delay
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            resultDiv.innerHTML = `<div class="alert alert-danger">An error occurred during verification.</div>`;
+             setTimeout(() => {
+                resultDiv.innerHTML = '';
+                html5QrcodeScanner.resume();
+            }, 5000);
+        });
+    }
+
+    function onScanFailure(error) {
+        // This function is called when a QR code is not found in a frame.
+        // It's usually best to ignore this and let the scanner continue.
+    }
+
+    let html5QrcodeScanner = new Html5QrcodeScanner(
+        "qr-reader",
+        { 
+            fps: 10, 
+            qrbox: {width: 250, height: 250} 
+        },
+        /* verbose= */ false);
+    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+</script>
+{% endblock %}

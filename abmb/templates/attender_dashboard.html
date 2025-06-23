@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="mb-4">Welcome, {{ current_user.username }}!</h1>
+<h2>Your Upcoming Event Invitations</h2>
+
+{% if invitations %}
+<div class="row">
+    {% for invitation in invitations %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card">
+            <div class="card-header">{{ invitation.schedule.event.name }}</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ invitation.schedule.location.name }}</h5>
+                <p class="card-text">
+                    <strong>From:</strong> {{ invitation.schedule.start_time.strftime('%A, %B %d, %Y at %I:%M %p') }}<br>
+                    <strong>To:</strong> {{ invitation.schedule.end_time.strftime('%A, %B %d, %Y at %I:%M %p') }}
+                </p>
+                <p>
+                    <strong>Attendance Status:</strong>
+                    {% if invitation.attended %}
+                        <span class="status-attended">ATTENDED</span>
+                    {% else %}
+                         <span class="status-pending">PENDING</span>
+                    {% endif %}
+                </p>
+                 <a href="{{ url_for('view_invitation', invitation_id=invitation.id) }}" class="btn btn-primary">View Details & QR Code</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info" role="alert">
+  You have no upcoming event invitations.
+</div>
+{% endif %}
+{% endblock %}
